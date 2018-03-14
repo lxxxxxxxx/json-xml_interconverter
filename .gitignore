@@ -1,0 +1,7 @@
+Debug
+x64
+*.opendb
+*.db
+*.exe
+*.lib
+*.vs
