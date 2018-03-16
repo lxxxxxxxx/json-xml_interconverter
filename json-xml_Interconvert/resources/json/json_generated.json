@@ -1,7 +1,7 @@
 {
 	"glossary":	{
 		"title":	"example glossary",
-		"double":	1.021254,
+		"double":	"1.021254",
 		"GlossDiv":	{
 			"title":	"S",
 			"GlossList":	{
@@ -13,8 +13,7 @@
 					"Abbrev":	"ISO 8879:1986",
 					"GlossDef":	{
 						"para":	"A meta-markup language, used to create markup languages such as DocBook.",
-						"GlossSeeAlso":	["GML", "XML", true, [1, 1], {
-							}]
+						"GlossSeeAlso":	["GML", "XML", "true", "1", "1"]
 					},
 					"GlossSee":	"markup"
 				}
