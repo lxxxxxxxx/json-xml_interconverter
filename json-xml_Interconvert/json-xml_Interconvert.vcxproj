@@ -153,6 +153,12 @@
     <ClInclude Include="json_xml.h" />
     <ClInclude Include="tinyxml2\tinyxml2.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\json\test.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="resources\xml\test.xml" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

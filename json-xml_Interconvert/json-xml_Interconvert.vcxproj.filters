@@ -7,6 +7,9 @@
     <Filter Include="tinyxml2">
       <UniqueIdentifier>{e71e903f-f814-4a62-b80a-119c308cabe7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{8d90ce0e-68b9-43f7-8eac-95e0f267ff64}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -25,5 +28,15 @@
       <Filter>tinyxml2</Filter>
     </ClInclude>
     <ClInclude Include="json_xml.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\json\test.json">
+      <Filter>src</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="resources\xml\test.xml">
+      <Filter>src</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

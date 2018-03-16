@@ -15,54 +15,71 @@
 const size_t buf_size = 16 * 1024 * 1024;
 
 
-
 class converter {
 public:
 	converter();
+	~converter();
 
+	/*   read the whole file to memory one time   */
+	bool readFile(const std::string &filename, std::string &str);
 
+	/*   write json/xml to file   */
+	bool writeFile(const std::string &path, bool json);
 
-	bool json2Xml(std::string infile, std::string outfile);
-	bool xml2Json(std::string infile, std::string outfile);
+	/*   parse json string to json tree   */
+	bool parseJson(const std::string &jsonStr);
+
+	/*   parse xml string to xml doc   */
+	bool parseXml(const std::string &xmlStr);
+
+	/*   convert json string to xml   */
+	bool json2Xml(const std::string &jsonStr);
+
+	/*   convert xml string to json   */
+	bool xml2Json(const std::string &xmlStr);
+
+	/*   return format json string   */
+	std::string getJsonStringFormat();
+
+	/*   return unformat json string   */
+	std::string getJsonStringUnformat();
+
+	/*   return format xml string   */
+	std::string getXmlStringFormat();
+
+	/*   return unformat json string   */
+	std::string getXmlStringUnformat();
+
 
 private:
+	/*   parse json node,construct a xml tree   */
+	void jsonNode2xmlNode(cJSON *jsonNode, tinyxml2::XMLNode *xmlNode, bool isArray, const std::string &arrNaem);
 
-	/*read the whole file to memory one time*/
-	bool _readFile(std::string filename, std::string &str);
-
-	void parseJsonNode(cJSON *node, tinyxml2::XMLDocument *doc );
-
-	void parseXmlNode(tinyxml2::XMLDocument *doc, cJSON *node);
-
-	bool _getJsonFromFile(std::string filename);
-
-	bool _getXmlFromFile(std::string filename);
-
-	bool _writeJsonFile(std::string path);
-
-	bool _writeXmlFile(std::string path);
+	/*   parse xml,construct json tree   */
+	void xmlNode2jsonNode(tinyxml2::XMLElement *xmlEle, cJSON *jsonNode);
 
 private:
-	cJSON *root;
-	tinyxml2::XMLDocument doc;
+	cJSON *jsonRoot;    //json
+	tinyxml2::XMLDocument doc;   //xml
 };
-
-
 
 
 //#################################################################
 
 
-converter::converter():root(nullptr) {}
+converter::converter():jsonRoot(nullptr){
+}
 
-bool converter::_readFile(std::string filename, std::string &str) {
-	std::fstream file;
+converter::~converter(){}
+
+bool converter::readFile(const std::string &filename, std::string &str) {
+	std::ifstream file;
 	char *buf = nullptr;
 	std::size_t filesize = 0;
 
-	file.open(filename, std::ios::in | std::ios::ate|std::ios::binary);
+	file.open(filename, std::ios::in | std::ios::ate | std::ios::binary);
 	if (!file.is_open()) {
-		std::cout << "open \""<<filename<<"\" failed" << std::endl;
+		std::cout << "open \"" << filename << "\" failed" << std::endl;
 		return false;
 	}
 
@@ -75,7 +92,7 @@ bool converter::_readFile(std::string filename, std::string &str) {
 	file.seekg(std::ios::beg);
 
 	try {
-	buf = new char[buf_size];
+		buf = new char[buf_size];
 	}
 	catch (std::bad_alloc &e) {
 		std::cerr << "bad_alloc:" << e.what() << std::endl;
@@ -84,141 +101,335 @@ bool converter::_readFile(std::string filename, std::string &str) {
 	memset(buf, '\0', buf_size);
 
 	file.read(buf, filesize);
+	file.close();
 	str.assign(buf);
 	delete[]buf;
 
 	return true;;
 }
 
-void converter::parseJsonNode(cJSON *node,tinyxml2::XMLDocument *doc) {
-	if (!node) {
-		return;
+bool converter::writeFile(const std::string &path, bool json) {
+	std::ofstream file;
+	file.open(path, std::ios::out | std::ios::beg|std::ios::binary);
+	if (!file.is_open()) {
+		std::cout << "file \"" << path << " \"open failed." << std::endl;
+		return false;
 	}
+	const char *tmp = nullptr;
+	if (json) {
+		const char *tmp = cJSON_Print(jsonRoot);
+		std::cout << "befor write: " << tmp << std::endl;
+		file.write(tmp, strlen(tmp));
+		file.close();
+	}
+	else {
+		tinyxml2::XMLPrinter printer(0,1,0);
+		doc.Print(&printer);
+		std::cout << "befor write: " << printer.CStr() << std::endl;
+		file.write(printer.CStr(), printer.CStrSize());
+		file.close();
+	}
+	return true;
 
-	std::string _key;
-	std::string _value_string;
-	double _value_double;
+}
 
-	switch (node->type) {
-	case cJSON_Invalid:
-		std::cout << "--------------------json invalid" << std::endl;
-		break;
+bool converter::parseJson(const std::string &jsonStr) {
+	jsonRoot = cJSON_Parse(jsonStr.data());
+	if (jsonRoot == nullptr) {
+		std::cout << "json parse failed befor " << cJSON_GetErrorPtr() << std::endl;
+		return false;
+	}
+	return true;
+}
 
+void converter::jsonNode2xmlNode(cJSON *jsonNode,tinyxml2::XMLNode *xmlNode,bool arrChild,const std::string &arrName) {
+	if (!jsonNode) {return;}
+	tinyxml2::XMLElement *newElement = nullptr;
+
+	switch (jsonNode->type) {
 	case cJSON_False:
 		std::cout << "-------------------json false" << std::endl;
+
+		if (arrChild) {
+			newElement = doc.NewElement(arrName.data());
+		}
+		else {
+			newElement = doc.NewElement(jsonNode->string);
+		}
+		newElement->InsertEndChild(doc.NewText("false"));
+		xmlNode->InsertEndChild(newElement);
+
+		if (jsonNode->next) {
+			if (arrChild) {
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 1, arrName);
+			}
+			else {
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 0, "");
+			}
+		}
 		break;
 
 	case cJSON_True:
 		std::cout << "-------------------json true" << std::endl;
+		if (arrChild) {
+			newElement = doc.NewElement(arrName.data());
+		}
+		else {
+			newElement = doc.NewElement(jsonNode->string);
+		}
+
+		newElement->InsertEndChild(doc.NewText("true"));
+		xmlNode->InsertEndChild(newElement);
+
+		if (jsonNode->next) {
+			if (arrChild) {
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 1, arrName);
+			}
+			else {
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 0, "");
+			}
+		}
+
 		break;
 
-	case cJSON_NULL:
-		std::cout << "------------------json null" << std::endl;
-		break;
 
 	case cJSON_Number:
 		std::cout << "--------------------json number" << std::endl;
-		//....construct xml node with number
-		if (node->string) {
-			_key.assign(node->string);
+		if (arrChild) {
+			newElement = doc.NewElement(arrName.data());
 		}
-		_value_double = node->valuedouble;
-		std::cout << _key << " : " << _value_double << std::endl;
+		else {
+			newElement = doc.NewElement(jsonNode->string);
+		}
+
+		newElement->InsertEndChild(doc.NewText(std::to_string(jsonNode->valuedouble).data()));
+		xmlNode->InsertEndChild(newElement);
+		if (jsonNode->next) {
+			if (arrChild) {
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 1, arrName);
+
+			}
+			else {
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 0, "");
+
+			}
+		}
 		break;
 
 	case cJSON_String:
 		std::cout << "--------------------josn string" << std::endl;
-		//....construct xml node with string
-		if (node->string) {
-			_key.assign(node->string);
+		if (arrChild) {
+			newElement = doc.NewElement(arrName.data());
 		}
-		if (node->valuestring) {
-			_value_string.assign(node->valuestring);
+		else {
+			newElement = doc.NewElement(jsonNode->string);
 		}
-		std::cout << _key << " : " << _value_string << std::endl;
+
+		newElement->InsertEndChild(doc.NewText(jsonNode->valuestring));
+		xmlNode->InsertEndChild(newElement);
+
+		if (jsonNode->next) {
+			if (arrChild)
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 1, arrName);
+			else
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 0, "");
+		}
 		break;
 
 	case cJSON_Array:
 		std::cout << "----------------json array" << std::endl;
-		if (node->string) {
-			_key.assign(node->string);
+
+		if (jsonNode->child) {
+			if (arrChild) {
+				jsonNode2xmlNode(jsonNode->child, xmlNode, 1, arrName);
+			}
+			else {
+				jsonNode2xmlNode(jsonNode->child, xmlNode, 1, std::string(jsonNode->string));
+			}
+		}
+		if (jsonNode->next) {
+			if (arrChild) {
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 1, arrName);
+			}
+			else {
+				jsonNode2xmlNode(jsonNode->next, xmlNode, 1, std::string(jsonNode->string));
+			}
 		}
 		break;
 
 	case cJSON_Object:
 		std::cout << "---------------json object" << std::endl;
-		if (node->string) {
-			_key.assign(node->string);
-			std::cout << _key << std::endl;
+		
+		if (jsonNode->string) {
+			//std::cout << jsonNode->string << std::endl;
+			//if array can own a json object chaild ?
+			if (arrChild) {
+				newElement = doc.NewElement(arrName.data());
+			}
+			else {
+				newElement = doc.NewElement(jsonNode->string);
+			}
+			//the begin of json object is a object
+			if (xmlNode == nullptr) {
+				doc.InsertEndChild(newElement);
+				doc.InsertFirstChild(doc.NewDeclaration());
+			}
+			else {
+				xmlNode->InsertEndChild(newElement);
+			}
+		}
+
+		if (jsonNode->child) {
+			jsonNode2xmlNode(jsonNode->child, newElement,0,"");
+		}
+		if (jsonNode->next) {
+			jsonNode2xmlNode(jsonNode->next, xmlNode,0,"");
 		}
 		break;
 
 	case cJSON_Raw:
 		std::cout << "------------------json raw" << std::endl;
 		break;
+
+	case cJSON_Invalid:
+		std::cout << "--------------------json invalid" << std::endl;
+		break;
+
+	case cJSON_NULL:
+		std::cout << "------------------json null" << std::endl;
+		break;
 	default:
 		std::cout << "fatal: no such type,cjson parse error.";
 		break;
 	}
+}
 
-
-	if (node->child) {
-		parseJsonNode(node->child, doc);
+bool converter::json2Xml(const std::string &jsonStr) {
+	doc.Clear();
+	if (!parseJson(jsonStr)) {
+		return false;
 	}
-	if (node->next) {
-		parseJsonNode(node->next, doc);
+	jsonNode2xmlNode(jsonRoot, doc.RootElement(), 0, "");
+	return true;
+}
+
+std::string converter::getJsonStringFormat() {
+	if (jsonRoot == nullptr) {
+		return "json empty..";
+	}
+	char *tmp = cJSON_Print(jsonRoot);
+	std::string printed(tmp);
+	if (tmp != nullptr) {
+		free(tmp);
+	}
+	return printed;
+}
+
+std::string converter::getJsonStringUnformat() {
+	if (jsonRoot == nullptr) {
+		return "json empty..";
+	}
+	char *tmp = cJSON_PrintUnformatted(jsonRoot);
+	std::string printed(tmp);
+	if (tmp != nullptr) {
+		free(tmp);
+	}
+	return printed;
+}
+
+
+
+
+
+bool converter::parseXml(const std::string &xmlStr) {
+	doc.Parse(xmlStr.data());
+	if (doc.Error()) {
+		std::cout << "xml parse error: " << doc.ErrorStr() << std::endl;
+		return false;
+	}
+	//std::cout << "@parseXml" << std::endl;
+	//doc.Print();
+	return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+void converter::xmlNode2jsonNode(tinyxml2::XMLElement *xmlEle, cJSON *jsonNode) {
+	const char * _key = xmlEle->Name();
+	if (_key) {
+		std::cout << _key << " : ";
+	}
+
+	const char * _value = xmlEle->GetText();
+	if (_value!=nullptr) {
+		std::cout << _value;
+	}
+	std::cout << std::endl;
+
+	if (xmlEle->FirstChildElement()) {
+		xmlNode2jsonNode(xmlEle->FirstChildElement(),jsonNode);
+	}
+	if (xmlEle->NextSiblingElement()) {
+		xmlNode2jsonNode(xmlEle->NextSiblingElement(), jsonNode);
 	}
 }
 
-void converter::parseXmlNode(tinyxml2::XMLDocument *doc, cJSON *node) {
-	tinyxml2::XMLElement *root = doc->RootElement();
-
-	//TODO:
 
 
 
 
 
-}
 
 
-bool converter::_getJsonFromFile(std::string filename) {
-	std::string str;
-	if (_readFile(filename, str)) {
-		root = cJSON_Parse(str.data());
-		//std::cout << str << std::endl;
-		//char * tmp = cJSON_Print(root);
-		//std::cout << "------------------------------------\n";
-		//std::cout << tmp << std::endl;
-		return true;
+
+
+
+
+
+
+bool converter::xml2Json(const std::string &xmlStr) {	
+	if (jsonRoot) {
+		cJSON_Delete(jsonRoot);
+		jsonRoot = nullptr;
 	}
-	return false;
-}
 
-
-bool converter::_getXmlFromFile(std::string filename) {
-	doc.LoadFile(filename.data());
-	return false;
-}
-
-
-bool converter::json2Xml(std::string infile,std::string outfile) {
-	_getJsonFromFile(infile);
-	parseJsonNode(root, &doc);
-
-
-
+	if (!parseXml(xmlStr)) {
+		return false;
+	}
+	xmlNode2jsonNode(doc.RootElement(), jsonRoot);
 
 	return true;
 }
 
 
-bool converter::xml2Json(std::string infile, std::string outfile) {
-	_getXmlFromFile(infile);
-	
-	doc.Print();
-	return true;
+std::string converter::getXmlStringFormat() {
+	if (nullptr == doc.RootElement()) {
+		return "xml empty..";
+	}
+	tinyxml2::XMLPrinter printer;
+	doc.Print(&printer);
+	return printer.CStr();
 }
+
+
+std::string converter::getXmlStringUnformat() {
+	if (nullptr == doc.RootElement()) {
+		return "xml empty..";
+	}
+	tinyxml2::XMLPrinter printer(0, 1, 0);
+	doc.Print(&printer);
+	return printer.CStr();
+}
+
+
 
 
 #endif
