@@ -27,7 +27,7 @@
     <ClInclude Include="tinyxml2\tinyxml2.h">
       <Filter>tinyxml2</Filter>
     </ClInclude>
-    <ClInclude Include="json_xml.h" />
+    <ClInclude Include="json_xml_interconverter.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\json\test.json">

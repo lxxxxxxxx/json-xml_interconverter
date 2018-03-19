@@ -150,7 +150,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cjson\cJSON.h" />
-    <ClInclude Include="json_xml.h" />
+    <ClInclude Include="json_xml_interconverter.h" />
     <ClInclude Include="tinyxml2\tinyxml2.h" />
   </ItemGroup>
   <ItemGroup>

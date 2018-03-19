@@ -1,6 +1,6 @@
 
-#ifndef _JSON_XML_H_
-#define _JSON_XML_H_
+#ifndef _JSON_XML_INTERCONVERTER_H_
+#define _JSON_XML_INTERCONVERTER_H_
 
 #include <fstream>
 #include <string>
@@ -130,6 +130,9 @@ bool converter::writeFile(const std::string &path, bool json) {
 	return true;
 
 }
+
+
+
 
 bool converter::parseJson(const std::string &jsonStr) {
 	jsonRoot = cJSON_Parse(jsonStr.data());
@@ -321,6 +324,9 @@ std::string converter::getJsonStringUnformat() {
 	return printed;
 }
 
+
+
+
 bool converter::parseXml(const std::string &xmlStr) {
 	doc.Parse(xmlStr.data());
 	if (doc.Error()) {
@@ -333,16 +339,30 @@ bool converter::parseXml(const std::string &xmlStr) {
 void converter::xmlNode2jsonNode(tinyxml2::XMLElement *xmlEle, cJSON *jsonNode) {
 	const char * _key = xmlEle->Name();
 	const char * _value = xmlEle->GetText();
+	//当key不为空时才处理
 	if (_key) {
+		//如果有元素属性，则处理元素属性，将元素属性作为string对象添加到jsonNode下
+		const tinyxml2::XMLAttribute *a = xmlEle->FirstAttribute();
+		const char *attrName = nullptr;
+		const char *attrValue = nullptr;
+		while (a) {
+			attrName = a->Name();
+			attrValue = a->Value();
+			cJSON_AddStringToObject(jsonNode, attrName, attrValue);
+			a = a->Next();
+		}
+
+		//如果value不为空
 		if (_value != nullptr) {
+			//判断是不是array
 			std::size_t arrElementCount = 1;
 			auto *tmp = xmlEle->NextSiblingElement();
 			while (tmp && (0==strcmp(_key ,tmp->Name()))) {
 				arrElementCount++;
 				tmp = tmp->NextSiblingElement();
 			}
-
-			if (arrElementCount > 1) {    //is a array.
+			//多个xml元素名一样，说明是一个array
+			if (arrElementCount > 1) {
 				cJSON *newArr = cJSON_CreateArray();
 
 				tinyxml2::XMLElement *arrEle = xmlEle;
@@ -352,23 +372,23 @@ void converter::xmlNode2jsonNode(tinyxml2::XMLElement *xmlEle, cJSON *jsonNode) 
 					cJSON_AddItemToArray(newArr, cJSON_CreateString(str));
 					arrEle = arrEle->NextSiblingElement();
 				}
-
-
 				cJSON_AddItemToObject(jsonNode, _key, newArr);
 				//char *printed = cJSON_Print(jsonNode);
 				//std::cout << printed << std::endl;
 			}
-
-			else {  //not array
+			//不是array，将key和value作为一个string对象添加到jsonNode下
+			else {
 				cJSON_AddStringToObject(jsonNode, _key, _value);
 				//char *printed = cJSON_Print(jsonRoot);
 				//std::cout << printed << std::endl;
 			}
+			//递归遍历array之后的下一个节点
 			if (tmp) {
 				xmlNode2jsonNode(tmp, jsonNode);
 			}
 		}
 
+		//若value为空，则说明该元素的值是其他元素对象
 		else {
 			cJSON *newNode = cJSON_CreateObject();
 			cJSON_AddItemToObject(jsonNode, _key, newNode);
