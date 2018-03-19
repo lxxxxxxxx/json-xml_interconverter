@@ -146,9 +146,6 @@ bool converter::parseJson(const std::string &jsonStr) {
 void converter::jsonNode2xmlNode(cJSON *jsonNode,tinyxml2::XMLNode *xmlNode,bool arrChild,const std::string &arrName) {
 	if (!jsonNode) {return;}
 	tinyxml2::XMLElement *newElement = nullptr;
-	//doc.Print();
-
-	cJSON *child = jsonNode->child;
 
 	switch (jsonNode->type) {
 	case cJSON_False:
@@ -190,7 +187,9 @@ void converter::jsonNode2xmlNode(cJSON *jsonNode,tinyxml2::XMLNode *xmlNode,bool
 				jsonNode2xmlNode(jsonNode->next, xmlNode, 0, "");
 			}
 		}
+
 		break;
+
 
 	case cJSON_Number:
 		if (arrChild) {
@@ -210,9 +209,11 @@ void converter::jsonNode2xmlNode(cJSON *jsonNode,tinyxml2::XMLNode *xmlNode,bool
 		if (jsonNode->next) {
 			if (arrChild) {
 				jsonNode2xmlNode(jsonNode->next, xmlNode, 1, arrName);
+
 			}
 			else {
 				jsonNode2xmlNode(jsonNode->next, xmlNode, 0, "");
+
 			}
 		}
 		break;
@@ -224,6 +225,7 @@ void converter::jsonNode2xmlNode(cJSON *jsonNode,tinyxml2::XMLNode *xmlNode,bool
 		else {
 			newElement = doc.NewElement(jsonNode->string);
 		}
+
 		newElement->InsertEndChild(doc.NewText(jsonNode->valuestring));
 		xmlNode->InsertEndChild(newElement);
 
@@ -255,28 +257,16 @@ void converter::jsonNode2xmlNode(cJSON *jsonNode,tinyxml2::XMLNode *xmlNode,bool
 		break;
 
 	case cJSON_Object:
+		
 		if (jsonNode->string) {
+			//if array can own a not null json object chaild ?
 			if (arrChild) {
 				newElement = doc.NewElement(arrName.data());
 			}
 			else {
 				newElement = doc.NewElement(jsonNode->string);
-				//探测元素属性
-				while (child) {
-					std::string s(child->string);
-					if (s[0] == '-') {
-						std::string attrName(s.begin() + 1, s.end());
-						std::string attrValue(child->valuestring);
-						newElement->SetAttribute(attrName.data(), attrValue.data());
-					}
-					else if (s[0] == '#') {
-						newElement->InsertEndChild(doc.NewText(child->valuestring));
-					}
-					else break;
-					child = child->next;
-				}
 			}
-			//the begin of json object
+			//the begin of json object is a object
 			if (xmlNode == nullptr) {
 				doc.InsertEndChild(newElement);
 				doc.InsertFirstChild(doc.NewDeclaration());
@@ -286,8 +276,8 @@ void converter::jsonNode2xmlNode(cJSON *jsonNode,tinyxml2::XMLNode *xmlNode,bool
 			}
 		}
 
-		if (child) {
-			jsonNode2xmlNode(child, newElement,0,"");
+		if (jsonNode->child) {
+			jsonNode2xmlNode(jsonNode->child, newElement,0,"");
 		}
 		if (jsonNode->next) {
 			jsonNode2xmlNode(jsonNode->next, xmlNode,0,"");
@@ -349,78 +339,32 @@ bool converter::parseXml(const std::string &xmlStr) {
 void converter::xmlNode2jsonNode(tinyxml2::XMLElement *xmlEle, cJSON *jsonNode) {
 	const char * _key = xmlEle->Name();
 	const char * _value = xmlEle->GetText();
-
+	cJSON *newNode = nullptr;
 	//当key不为空时才处理
 	if (_key) {
-		//若value为空，说明该元素的值是其他对象
-		if (!_value) {
-			//判断是否有属性
-			const tinyxml2::XMLAttribute *attr = xmlEle->FirstAttribute();
-			cJSON *newNode = cJSON_CreateObject();
-			//有属性，将每一个属性已经改元素值作为一个节点插入到新建节点
-			if (attr) {
-				std::string attrName, attrValue;
-				while (attr) {
-					attrName = "-";
-					attrName.append(attr->Name());
-					attrValue = attr->Value();
-					cJSON_AddStringToObject(newNode, attrName.data(), attrValue.data());
-					attr = attr->Next();
-				}
-			}
-			if (xmlEle->FirstChildElement()) {
-				xmlNode2jsonNode(xmlEle->FirstChildElement(), newNode);
-			}
-			cJSON_AddItemToObject(jsonNode, _key, newNode);
-
-			if (xmlEle->NextSiblingElement()) {
-				xmlNode2jsonNode(xmlEle->NextSiblingElement(), jsonNode);
-			}
-		}
 		//如果value不为空
-		else {
+		if (_value != nullptr) {
 			//判断当前节点是不是array的元素
 			std::size_t arrElementCount = 1;
 			auto *tmp = xmlEle->NextSiblingElement();
-			while (tmp && (0 == strcmp(_key, tmp->Name()))) {
+			while (tmp && (0==strcmp(_key ,tmp->Name()))) {
 				arrElementCount++;
 				tmp = tmp->NextSiblingElement();
 			}
 			//多个xml元素名一样，说明是一个array
 			if (arrElementCount > 1) {
 				cJSON *newArr = cJSON_CreateArray();
+
 				tinyxml2::XMLElement *arrEle = xmlEle;
-
+				const char *str = nullptr;
 				for (int i = 0; i < arrElementCount; i++) {
-					//有属性，新建节点，将每一个属性已经改元素值作为一个节点插入到新建节点
-					auto attr = arrEle->FirstAttribute();
-					if (attr) {
-						cJSON *newNode = cJSON_CreateObject();
-						xmlNode2jsonNode(arrEle, newNode);
-						cJSON_AddItemToArray(newArr, newNode);
-
-						//std::string attrName, attrValue;
-						//cJSON *newNode = cJSON_CreateObject();
-						//while (attr) {
-						//	attrName = "-";
-						//	attrName.append(attr->Name());
-						//	attrValue = attr->Value();
-						//	cJSON_AddStringToObject(newNode, attrName.data(), attrValue.data());
-						//	attr = attr->Next();
-						//}
-						//if (arrEle->GetText()) {
-						//	cJSON_AddStringToObject(newNode, "#text", arrEle->GetText());
-						//}
-						cJSON_AddItemToArray(newArr, newNode);
-					}
-					else {
-						const char *str = nullptr;
-						str = arrEle->GetText();
-						cJSON_AddItemToArray(newArr, cJSON_CreateString(str));
-					}
+					str = arrEle->GetText();
+					cJSON_AddItemToArray(newArr, cJSON_CreateString(str));
 					arrEle = arrEle->NextSiblingElement();
 				}
 				cJSON_AddItemToObject(jsonNode, _key, newArr);
+				//char *printed = cJSON_Print(jsonNode);
+				//std::cout << printed << std::endl;
 			}
 			//不是array
 			else {
@@ -437,16 +381,32 @@ void converter::xmlNode2jsonNode(tinyxml2::XMLElement *xmlEle, cJSON *jsonNode) 
 						attr = attr->Next();
 					}
 					cJSON_AddStringToObject(newNode, "#text", _value);
-					cJSON_AddItemToObject(jsonNode, _key, newNode);
+					cJSON_AddItemToObject(jsonNode,_key, newNode);
 				}
 				//没有元素属性，将key和value作为一个string对象添加到jsonNode下
 				else {
 					cJSON_AddStringToObject(jsonNode, _key, _value);
 				}
+				//char *printed = cJSON_Print(jsonRoot);
+				//std::cout << printed << std::endl;
 			}
 			//递归遍历array之后的下一个节点
 			if (tmp) {
 				xmlNode2jsonNode(tmp, jsonNode);
+			}
+		}
+
+		//若value为空，则说明该元素的值是其他对象
+		else {
+			cJSON *newNode = cJSON_CreateObject();
+			cJSON_AddItemToObject(jsonNode, _key, newNode);
+			//char *tmp = cJSON_Print(jsonNode);
+			//std::cout << tmp << std::endl;
+			if (xmlEle->FirstChildElement()) {
+				xmlNode2jsonNode(xmlEle->FirstChildElement(), newNode);
+			}
+			if (xmlEle->NextSiblingElement()) {
+				xmlNode2jsonNode(xmlEle->NextSiblingElement(), jsonNode);
 			}
 		}
 	}

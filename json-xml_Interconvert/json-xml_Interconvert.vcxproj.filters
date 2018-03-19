@@ -38,5 +38,8 @@
     <Xml Include="resources\xml\test.xml">
       <Filter>src</Filter>
     </Xml>
+    <Xml Include="resources\xml\a.xml">
+      <Filter>src</Filter>
+    </Xml>
   </ItemGroup>
 </Project>

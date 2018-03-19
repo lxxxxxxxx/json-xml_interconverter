@@ -1,21 +1,24 @@
 {
 	"glossary":	{
-		"a":	"abc",
-		"b":	"bcd",
-		"title":	"example glossary",
+		"title":	{
+			"-a":	"abc",
+			"-b":	"bcd",
+			"#text":	" asdf "
+		},
 		"double":	"1.021254",
 		"GlossDiv":	{
 			"title":	"S",
 			"GlossList":	{
+				"-a":	"a",
 				"GlossEntry":	{
 					"ID":	"SGML",
 					"SortAs":	"SGML",
-					"GlossTerm":	"Standard Generalized Markup Language",
+					"GlossTerm":	"Standard Gene",
 					"Acronym":	"SGML",
 					"Abbrev":	"ISO 8879:1986",
 					"GlossDef":	{
-						"para":	"A meta-markup language, used to create markup languages such as DocBook.",
-						"GlossSeeAlso":	["GML", "XML", "true", "1", "1"]
+						"para":	"A met.",
+						"GlossSeeAlso":	["XML", "true", "1", "1"]
 					},
 					"GlossSee":	"markup"
 				}
